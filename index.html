@@ -558,7 +558,7 @@
               inner += `<div class="card-detail">${booking.guests} guest${booking.guests !== 1 ? 's' : ''} · Arriving ${capitalize(booking.arrival)}${booking.departure === 'monday' ? ' · Leaving Monday AM' : ''}</div>`;
             } else if (status === 'blocked') {
               inner += `<span class="card-badge badge-blocked">Unavailable</span>`;
-              inner += `<div class="card-detail" style="margin-top:6px">Unavailable</div>`;
+              inner += `<div class="card-detail" style="margin-top:6px">Reserved</div>`;
             }
 
             const clickable = status === 'available' ? `onclick="openBooking(${idx})"` : '';
