@@ -380,6 +380,7 @@
 
     /* ─── State ─── */
     let bookings = {};
+    let manualBlocks = new Set();
     let loading = true;
     let error = null;
 
@@ -395,6 +396,7 @@
       const key = dateKey(SATURDAYS[idx]);
       if (RESERVED.has(key)) return 'reserved';
       if (bookings[key]) return 'booked';
+      if (manualBlocks.has(key)) return 'blocked';
       if (isBlocked(idx)) return 'blocked';
       return 'available';
     }
@@ -405,7 +407,7 @@
       error = null;
       render();
 
-      if (!CONFIG.SCRIPT_URL || CONFIG.SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+      if (!CONFIG.SCRIPT_URL) {
         loading = false;
         error = 'Calendar not configured yet. All weekends shown as available.';
         render();
@@ -422,6 +424,9 @@
         }
 
         bookings = {};
+        manualBlocks = new Set();
+
+        const guestPattern = /\d+\s*guest/i;
 
         for (const ev of (data.events || [])) {
           if (!ev.start || !ev.end) continue;
@@ -437,20 +442,27 @@
 
             // Event overlaps with Sat–Sun
             if (evStart <= sun && evEnd > sat) {
-              const title = ev.title || 'Guest';
-              const gMatch = title.match(/(\d+)\s*guest/i);
-              const guests = gMatch ? parseInt(gMatch[1]) : 1;
-              const name = title.replace(/\s*[-–—]\s*\d+\s*guest.*/i, '').trim();
+              const title = ev.title || '';
 
-              const daysBefore = Math.round((sat - evStart) / 86400000);
-              let arrival = 'friday';
-              if (daysBefore >= 2) arrival = 'thursday';
-              else if (daysBefore <= 0) arrival = 'saturday';
+              if (guestPattern.test(title)) {
+                // Guest booking: "Name - N guests"
+                const gMatch = title.match(/(\d+)\s*guest/i);
+                const guests = gMatch ? parseInt(gMatch[1]) : 1;
+                const name = title.replace(/\s*[-–—]\s*\d+\s*guest.*/i, '').trim();
 
-              const daysAfter = Math.round((evEnd - sun) / 86400000);
-              const departure = daysAfter >= 1 ? 'monday' : 'sunday';
+                const daysBefore = Math.round((sat - evStart) / 86400000);
+                let arrival = 'friday';
+                if (daysBefore >= 2) arrival = 'thursday';
+                else if (daysBefore <= 0) arrival = 'saturday';
 
-              bookings[key] = { name, guests, arrival, departure };
+                const daysAfter = Math.round((evEnd - sun) / 86400000);
+                const departure = daysAfter >= 1 ? 'monday' : 'sunday';
+
+                bookings[key] = { name, guests, arrival, departure };
+              } else {
+                // Manual block: anything that doesn't match guest format
+                manualBlocks.add(key);
+              }
             }
           }
         }
